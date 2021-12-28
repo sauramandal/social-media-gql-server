@@ -8,6 +8,7 @@ const Post = require("./models/Post");
 const server = new ApolloServer({
   typeDefs,
   resolvers,
+  context: ({ req }) => ({ req }),
 });
 
 mongoose
