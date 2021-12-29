@@ -5,7 +5,7 @@ module.exports = {
   Query: {
     async getPosts() {
       try {
-        const posts = await Post.find();
+        const posts = await Post.find().sort({ createdAt: -1 }); // Get latest posts
         return posts;
       } catch (err) {
         throw new Error(err);
