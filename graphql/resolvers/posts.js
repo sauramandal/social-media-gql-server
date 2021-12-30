@@ -1,10 +1,10 @@
-const { AuthenticationError } = require("apollo-server");
+const { AuthenticationError, UserInputError } = require("apollo-server");
 const Post = require("../../models/Post");
 const checkAuth = require("../../utils/check-auth");
 
 module.exports = {
   Query: {
-    async getPosts() {
+    getPosts: async () => {
       try {
         const posts = await Post.find().sort({ createdAt: -1 }); // Get latest posts
         return posts;
@@ -12,7 +12,7 @@ module.exports = {
         throw new Error(err);
       }
     },
-    async getPost(_, { postId }) {
+    getPost: async (_, { postId }) => {
       try {
         const post = await Post.findById(postId);
         if (post) {
@@ -26,7 +26,7 @@ module.exports = {
     },
   },
   Mutation: {
-    async createPost(_, { body }, context) {
+    createPost: async (_, { body }, context) => {
       const user = checkAuth(context);
       const { id, username } = user;
       const newPost = new Post({
@@ -37,7 +37,7 @@ module.exports = {
       });
       return await newPost.save();
     },
-    async deletePost(_, { postId }, context) {
+    deletePost: async (_, { postId }, context) => {
       const user = checkAuth(context);
       try {
         const post = await Post.findById(postId);
@@ -50,6 +50,24 @@ module.exports = {
       } catch (err) {
         throw new Error(err);
       }
+    },
+    likePost: async (_, { postId }, context) => {
+      const { username } = checkAuth(context);
+      const post = await Post.findById(postId);
+      if (post) {
+        if (post.likes.find((like) => like.username === username)) {
+          // Post already liked, unlike it
+          post.likes = post.likes.filter((like) => like.username !== username);
+        } else {
+          // Like a post
+          post.likes.push({
+            username,
+            createdAt: new Date().toISOString(),
+          });
+        }
+        await post.save();
+        return post;
+      } else throw new UserInputError("Post not found!");
     },
   },
 };
