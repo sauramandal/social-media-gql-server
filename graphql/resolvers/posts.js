@@ -1,4 +1,5 @@
 const { AuthenticationError, UserInputError } = require("apollo-server");
+const { argsToArgsConfig } = require("graphql/type/definition");
 const Post = require("../../models/Post");
 const checkAuth = require("../../utils/check-auth");
 
@@ -28,6 +29,7 @@ module.exports = {
   Mutation: {
     createPost: async (_, { body }, context) => {
       const user = checkAuth(context);
+      if (body.trim() === "") throw new Error("Post body cannot be empty");
       const { id, username } = user;
       const newPost = new Post({
         body,
@@ -35,7 +37,12 @@ module.exports = {
         username,
         createdAt: new Date().toISOString(),
       });
-      return await newPost.save();
+
+      const post = await newPost.save();
+      context.pubSub.publish("NEW_POST", {
+        newPost: post,
+      });
+      return post;
     },
     deletePost: async (_, { postId }, context) => {
       const user = checkAuth(context);
@@ -68,6 +75,13 @@ module.exports = {
         await post.save();
         return post;
       } else throw new UserInputError("Post not found!");
+    },
+  },
+  // Resolvers for Subscription fields differ from resolvers for fields of other types.
+  // Specifically, Subscription field resolvers are objects that define a subscribe function
+  Subscription: {
+    newPost: {
+      subscribe: (_, __, { pubSub }) => pubSub.asyncIterator("NEW_POST"),
     },
   },
 };
